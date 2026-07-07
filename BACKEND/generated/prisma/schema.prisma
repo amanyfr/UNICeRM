@@ -1,0 +1,210 @@
+// UNICeRM CRM - Prisma Schema
+// Database: PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ==================== ENUMS ====================
+
+enum Role {
+  ADMIN
+  AGENT
+  CUSTOMER
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TicketChannel {
+  WHATSAPP
+  EMAIL
+  FORM
+  CHAT
+}
+
+enum CustomerSegment {
+  VIP
+  AKTIF
+  PROSPEK
+  TIDAK_AKTIF
+}
+
+enum NotificationType {
+  TICKET
+  VOUCHER
+  SYSTEM
+}
+
+// ==================== MODELS ====================
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(CUSTOMER)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  customer        Customer?
+  assignedTickets Ticket[]         @relation("AssignedTickets")
+  sentMessages    TicketMessage[]  @relation("SentMessages")
+  feedbacks       Feedback[]
+  claimedVouchers ClaimedVoucher[]
+  chatLogs        ChatLog[]
+  notifications   Notification[]
+  tickets         Ticket[]         @relation("CustomerTickets")
+
+  @@map("users")
+}
+
+model Customer {
+  id        Int             @id @default(autoincrement())
+  userId    Int             @unique
+  phone     String?
+  address   String?
+  company   String?
+  segment   CustomerSegment @default(PROSPEK)
+  source    String?
+  createdAt DateTime        @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("customers")
+}
+
+model Ticket {
+  id           Int            @id @default(autoincrement())
+  ticketNumber String         @unique
+  title        String
+  description  String
+  status       TicketStatus   @default(OPEN)
+  priority     TicketPriority @default(MEDIUM)
+  channel      TicketChannel  @default(FORM)
+  customerId   Int
+  assignedTo   Int?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  resolvedAt   DateTime?
+
+  // Relations
+  customer User            @relation("CustomerTickets", fields: [customerId], references: [id])
+  agent    User?           @relation("AssignedTickets", fields: [assignedTo], references: [id])
+  messages TicketMessage[]
+  feedback Feedback?
+  chatLogs ChatLog[]
+
+  @@map("tickets")
+}
+
+model TicketMessage {
+  id         Int      @id @default(autoincrement())
+  ticketId   Int
+  senderId   Int
+  senderRole String // 'customer' | 'agent' | 'bot' | 'system'
+  message    String
+  isInternal Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  // Relations
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender User   @relation("SentMessages", fields: [senderId], references: [id])
+
+  @@map("ticket_messages")
+}
+
+model Feedback {
+  id         Int      @id @default(autoincrement())
+  ticketId   Int      @unique
+  customerId Int
+  rating     Int
+  comment    String?
+  createdAt  DateTime @default(now())
+
+  // Relations
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  customer User   @relation(fields: [customerId], references: [id])
+
+  @@map("feedbacks")
+}
+
+model Voucher {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique
+  title       String
+  description String?
+  discount    Int
+  validUntil  DateTime
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  // Relations
+  claimedVouchers ClaimedVoucher[]
+
+  @@map("vouchers")
+}
+
+model ClaimedVoucher {
+  id        Int      @id @default(autoincrement())
+  voucherId Int
+  userId    Int
+  claimedAt DateTime @default(now())
+
+  // Relations
+  voucher Voucher @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([voucherId, userId])
+  @@map("claimed_vouchers")
+}
+
+model ChatLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  message    String
+  response   String
+  isResolved Boolean  @default(false)
+  ticketId   Int?
+  createdAt  DateTime @default(now())
+
+  // Relations
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ticket Ticket? @relation(fields: [ticketId], references: [id])
+
+  @@map("chat_logs")
+}
+
+model Notification {
+  id        Int              @id @default(autoincrement())
+  userId    Int
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  type      NotificationType @default(SYSTEM)
+  createdAt DateTime         @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
