@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>UNICeRM — Uni Inside Media CRM</title>
+  </head>
+  <body>
+    <div id="error-log" style="background: red; color: white; padding: 20px; z-index: 9999; position: fixed; top: 0; left: 0; right: 0; display: none; white-space: pre-wrap;"></div>
+    <script>
+      window.addEventListener('error', (event) => {
+        const el = document.getElementById('error-log');
+        el.style.display = 'block';
+        el.textContent += event.error ? event.error.stack : event.message + '\n';
+      });
+      window.addEventListener('unhandledrejection', (event) => {
+        const el = document.getElementById('error-log');
+        el.style.display = 'block';
+        el.textContent += 'Unhandled Rejection: ' + (event.reason ? event.reason.stack || event.reason : 'unknown') + '\n';
+      });
+      console.log = function(...args) {
+        if (args[0] && typeof args[0] === 'string' && args[0].includes('error')) {
+          const el = document.getElementById('error-log');
+          el.style.display = 'block';
+          el.textContent += args.join(' ') + '\n';
+        }
+      }
+    </script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
